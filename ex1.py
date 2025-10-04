@@ -28,7 +28,7 @@ class SistemaDistribuicao:
        
         # Vias bidirecionais (origem, destino, capacidade)
         vias = [
-            ('S1', 'H1', 12), ('S1', 'H2', 9), ('S1', 'P1', 7),
+            ('S1', 'H1', 12), ('S1', 'H2', 9), 
             ('S2', 'H1', 10), ('S2', 'P2', 8),
             ('H1', 'H2', 9), ('H1', 'P1', 8), ('H1', 'P2', 9),
             ('H2', 'P1', 6),
@@ -63,18 +63,13 @@ class SistemaDistribuicao:
             pos[node] = (i * 1.5 + 0.5, 0)
         
         plt.figure(figsize=(14, 10))
-        
-        edges = self.G.edges()
-        capacities = [self.G[u][v]['capacity'] for u, v in edges]
-        max_cap = max(capacities)
-        widths = [2 + (cap / max_cap) * 3 for cap in capacities]
-        
+                
         node_colors = [self.G.nodes[n]['color'] for n in self.G.nodes]
         
-        nx.draw_networkx_edges(self.G, pos, width=widths, alpha=0.6, 
-                              edge_color='gray', arrows=True, arrowsize=15)
+        nx.draw_networkx_edges(self.G, pos, width=1, alpha=1, 
+                              edge_color='black', arrows=True, arrowsize=15)
         nx.draw_networkx_nodes(self.G, pos, node_color=node_colors, 
-                              node_size=1200, edgecolors='black', linewidths=2)
+                              node_size=1200, edgecolors='black')
         nx.draw_networkx_labels(self.G, pos, font_size=9, font_weight='bold')
         
         edge_labels = {}
@@ -84,9 +79,8 @@ class SistemaDistribuicao:
                 edge_labels[(u, v)] = self.G[u][v]['capacity']
                 edges_processed.add((u, v))
         
-        nx.draw_networkx_edge_labels(self.G, pos, edge_labels=edge_labels, 
-                                    font_size=7, bbox=dict(boxstyle="round,pad=0.2", 
-                                    facecolor="white", alpha=0.8))
+        nx.draw_networkx_edge_labels(self.G, pos, edge_labels,
+                                    label_pos=0.4)
         
         plt.title("Rede de Distribuição", fontsize=14, fontweight='bold')
         plt.axis('off')
