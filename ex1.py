@@ -69,7 +69,7 @@ class SistemaDistribuicao:
         nx.draw_networkx_edges(self.G, pos, width=1, alpha=1, 
                               edge_color='black', arrows=True, arrowsize=15)
         nx.draw_networkx_nodes(self.G, pos, node_color=node_colors, 
-                              node_size=1200, edgecolors='black', linewidths=0)
+                              node_size=1200, edgecolors='black')
         nx.draw_networkx_labels(self.G, pos, font_size=9, font_weight='bold')
         
         edge_labels = {}
