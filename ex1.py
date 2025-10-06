@@ -6,27 +6,27 @@ class SistemaDistribuicao:
     def __init__(self):
         self.G = nx.DiGraph()
         self.capacidade_veiculo = 10
-        self.tipos_pacotes = {1: 1, 2: 2, 5: 5}  # tipo: unidades
+        self.tipos_pacotes = {1: 1, 2: 2, 5: 5}  #unidades
         
     def criar_rede(self):
         """Cria a rede de distribuição"""
-        # Sources (armazéns)
+        #sources
         self.G.add_node('S1', type='source', color='green', stock=40, veiculos=8)
         self.G.add_node('S2', type='source', color='green', stock=45, veiculos=9)
         
-        # Pontos de passagem
+        #pontos de passagem
         self.G.add_node('H1', type='passagem', color='lightblue')
         self.G.add_node('H2', type='passagem', color='lightblue')
         self.G.add_node('P1', type='passagem', color='skyblue')
         self.G.add_node('P2', type='passagem', color='skyblue')
        
-        # Sinks (destinos)
-        self.G.add_node('D1', type='sink', color='red')
-        self.G.add_node('D2', type='sink', color='red')
-        self.G.add_node('D3', type='sink', color='red')
-        self.G.add_node('D4', type='sink', color='red')
+        #destinos
+        self.G.add_node('D1', type='destino', color='red')
+        self.G.add_node('D2', type='destino', color='red')
+        self.G.add_node('D3', type='destino', color='red')
+        self.G.add_node('D4', type='destino', color='red')
        
-        # Vias bidirecionais (origem, destino, capacidade)
+        #vias  (origem, destino, capacidade)
         vias = [
             ('S1', 'H1', 12), ('S1', 'H2', 9),
             ('S2', 'H1', 10), ('S2', 'P2', 8),
@@ -45,7 +45,7 @@ class SistemaDistribuicao:
     def visualizar_rede(self):
         """Visualiza o grafo da rede"""
         sources = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'source']
-        sinks = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'sink']
+        destinos = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'destino']
         passagem = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'passagem']
         
         pos = {}
@@ -59,7 +59,7 @@ class SistemaDistribuicao:
             pos[node] = (i * 2.5 + 0.5, 2)
         for i, node in enumerate(intermedios):
             pos[node] = (i * 2 + 1, 1)
-        for i, node in enumerate(sinks):
+        for i, node in enumerate(destinos):
             pos[node] = (i * 1.5 + 0.5, 0)
         
         plt.figure(figsize=(14, 10))
