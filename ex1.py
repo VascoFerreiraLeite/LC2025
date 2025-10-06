@@ -195,12 +195,12 @@ def resolver_encomenda(G, encomenda, capacidade_veiculo=10, tipos_pacotes={1: 1,
                 num_veiculos = int(y[s].solution_value())
                 caminho = nx.shortest_path(G, s, destino)
                 
-                print(f"{' → '.join(caminho)} ({num_veiculos} veículos)")
+                print(f"{' -> '.join(caminho)} ({num_veiculos} veículos)")
                 
                 for i in range(len(caminho) - 1):
                     cap = G[caminho[i]][caminho[i+1]]['capacity']
                     ok = "✓" if num_veiculos <= cap else "✗"
-                    print(f"      {caminho[i]}→{caminho[i+1]}: {num_veiculos}/{cap} {ok}")
+                    print(f"      {caminho[i]}->{caminho[i+1]}: {num_veiculos}/{cap} {ok}")
         
         print("\n")
         return True
