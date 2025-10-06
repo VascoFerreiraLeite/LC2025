@@ -9,7 +9,6 @@ class SistemaDistribuicao:
         self.tipos_pacotes = {1: 1, 2: 2, 5: 5}  #unidades
         
     def criar_rede(self):
-        """Cria a rede de distribuição"""
         #sources
         self.G.add_node('S1', type='source', color='green', stock=40, veiculos=8)
         self.G.add_node('S2', type='source', color='green', stock=45, veiculos=9)
@@ -21,20 +20,19 @@ class SistemaDistribuicao:
         self.G.add_node('P2', type='passagem', color='skyblue')
        
         #destinos
-        self.G.add_node('D1', type='destino', color='red')
-        self.G.add_node('D2', type='destino', color='red')
-        self.G.add_node('D3', type='destino', color='red')
-        self.G.add_node('D4', type='destino', color='red')
+        self.G.add_node('D1', type='sink', color='red')
+        self.G.add_node('D2', type='sink', color='red')
+        self.G.add_node('D3', type='sink', color='red')
+        self.G.add_node('D4', type='sink', color='red')
        
         #vias  (origem, destino, capacidade)
         vias = [
             ('S1', 'H1', 12), ('S1', 'H2', 9),
             ('S2', 'H1', 10), ('S2', 'P2', 8),
-            ('H1', 'H2', 9), ('H1', 'P1', 8), ('H1', 'P2', 9),
-            ('H2', 'P1', 6),
+            ('H1', 'H2', 9), ('H1', 'P1', 8), ('H1', 'P2', 9), ('H1', 'D1', 5), ('H1', 'D3', 6), 
+            ('H2', 'P1', 6), ('H2', 'D2', 4),
             ('P1', 'P2', 6), ('P1', 'D1', 7), ('P1', 'D2', 6),
-            ('P2', 'D2', 7), ('P2', 'D3', 8), ('P2', 'D4', 9),
-            ('H1', 'D1', 5), ('H1', 'D3', 6), ('H2', 'D2', 4),
+            ('P2', 'D2', 7), ('P2', 'D3', 8), ('P2', 'D4', 9), 
             ('D1', 'D2', 4), ('D3', 'D4', 5),
         ]
         
@@ -43,11 +41,10 @@ class SistemaDistribuicao:
             self.G.add_edge(dest, orig, capacity=cap)
     
     def visualizar_rede(self):
-        """Visualiza o grafo da rede"""
-        sources = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'source']
-        destinos = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'destino']
-        passagem = [n for n in self.G.nodes if self.G.nodes[n]['type'] == 'passagem']
-        
+        sources=[n for n in self.G.nodes if self.G.nodes[n]['type'] == 'source']
+        sinks=[n for n in self.G.nodes if self.G.nodes[n]['type'] == 'sink']
+        passagem=[n for n in self.G.nodes if self.G.nodes[n]['type'] == 'passagem']
+            
         pos = {}
         for i, node in enumerate(sources):
             pos[node] = (i * 2, 3)
@@ -59,7 +56,7 @@ class SistemaDistribuicao:
             pos[node] = (i * 2.5 + 0.5, 2)
         for i, node in enumerate(intermedios):
             pos[node] = (i * 2 + 1, 1)
-        for i, node in enumerate(destinos):
+        for i, node in enumerate(sinks):
             pos[node] = (i * 1.5 + 0.5, 0)
         
         plt.figure(figsize=(14, 10))
