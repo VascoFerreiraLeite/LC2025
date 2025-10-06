@@ -46,6 +46,7 @@ def visualizar_rede(G):
     hubs = [n for n in passagem if n.startswith('H')]
     intermedios = [n for n in passagem if n.startswith('P')]  
 
+
     pos = {}
     for i, node in enumerate(sources):
         pos[node] = (i * 2, 3)
@@ -72,7 +73,6 @@ def visualizar_rede(G):
         if (v, u) not in edges_processed:
             edge_labels[(u, v)] = G[u][v]['capacity']
             edges_processed.add((u, v))
-    
     nx.draw_networkx_edge_labels(G, pos, edge_labels, alpha=1)
     
     plt.title("Rede de Distribuição", fontsize=14, fontweight='bold')
@@ -81,7 +81,6 @@ def visualizar_rede(G):
     plt.show()
 
 def resolver_encomenda(G, encomenda, capacidade_veiculo=10, tipos_pacotes={1: 1, 2: 2, 5: 5}):
-    """Resolve o problema de otimização para uma encomenda"""
     destino = encomenda['destino']
     pacotes_pedidos = encomenda['pacotes']
     
