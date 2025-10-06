@@ -28,7 +28,7 @@ class SistemaDistribuicao:
        
         # Vias bidirecionais (origem, destino, capacidade)
         vias = [
-            ('S1', 'H1', 12), ('S1', 'H2', 9), ('S1', 'P1', 7),
+            ('S1', 'H1', 12), ('S1', 'H2', 9),
             ('S2', 'H1', 10), ('S2', 'P2', 8),
             ('H1', 'H2', 9), ('H1', 'P1', 8), ('H1', 'P2', 9),
             ('H2', 'P1', 6),
@@ -79,9 +79,8 @@ class SistemaDistribuicao:
                 edge_labels[(u, v)] = self.G[u][v]['capacity']
                 edges_processed.add((u, v))
         
-        nx.draw_networkx_edge_labels(self.G, pos, edge_labels=edge_labels, 
-                                    font_size=7, bbox=dict(boxstyle="round,pad=0.2", 
-                                    facecolor="white", alpha=1))
+        nx.draw_networkx_edge_labels(self.G, pos, edge_labels,
+                                     alpha=1)
         
         plt.title("Rede de Distribuição", fontsize=14, fontweight='bold')
         plt.axis('off')
