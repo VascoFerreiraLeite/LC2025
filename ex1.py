@@ -3,26 +3,25 @@ import matplotlib.pyplot as plt
 from ortools.linear_solver import pywraplp
 
 def criar_rede():
-    """Cria a rede de distribuição"""
     G = nx.DiGraph()
     
-    # Sources
+    #sources
     G.add_node('S1', type='source', color='green', stock=40, veiculos=8)
     G.add_node('S2', type='source', color='green', stock=45, veiculos=9)
     
-    # Pontos de passagem
+    #pontos de passagem
     G.add_node('H1', type='passagem', color='lightblue')
     G.add_node('H2', type='passagem', color='lightblue')
     G.add_node('P1', type='passagem', color='skyblue')
     G.add_node('P2', type='passagem', color='skyblue')
    
-    # Destinos
+    #destinos
     G.add_node('D1', type='sink', color='red')
     G.add_node('D2', type='sink', color='red')
     G.add_node('D3', type='sink', color='red')
     G.add_node('D4', type='sink', color='red')
    
-    # Vias (origem, destino, capacidade)
+    #vias (origem, destino, capacidade)
     vias = [
         ('S1', 'H1', 12), ('S1', 'H2', 9),
         ('S2', 'H1', 10), ('S2', 'P2', 8),
@@ -40,18 +39,16 @@ def criar_rede():
     return G
 
 def visualizar_rede(G):
-    """Visualiza a rede de distribuição"""
     sources = [n for n in G.nodes if G.nodes[n]['type'] == 'source']
     sinks = [n for n in G.nodes if G.nodes[n]['type'] == 'sink']
     passagem = [n for n in G.nodes if G.nodes[n]['type'] == 'passagem']
-        
+
+    hubs = [n for n in passagem if n.startswith('H')]
+    intermedios = [n for n in passagem if n.startswith('P')]  
+
     pos = {}
     for i, node in enumerate(sources):
         pos[node] = (i * 2, 3)
-    
-    hubs = [n for n in passagem if n.startswith('H')]
-    intermedios = [n for n in passagem if n.startswith('P')]
-    
     for i, node in enumerate(hubs):
         pos[node] = (i * 2.5 + 0.5, 2)
     for i, node in enumerate(intermedios):
