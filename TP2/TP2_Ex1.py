@@ -1,0 +1,284 @@
+#import networkx as nx
+#import matplotlib.pyplot as plt
+#from ortools.linear_solver import pywraplp
+from z3 import *
+import numpy as np
+
+
+n=10 #teste
+k=5 #teste
+rng=np.random.default_rng(12345)
+print(rng) #debug
+z=rng.integers(low=0, high=2, size=n, dtype=np.uint8)
+s=rng.integers(low=0, high=2, size=k, dtype=np.uint8)
+print(z) #debug
+print(s) #debug
+
+def produto_int(a, b):
+    assert len(a)==len(b)
+    n=len(a)
+    res=0
+    for i in range(n):
+        prod=a[i]&b[i]
+        res=res^prod
+    return res
+
+# --- ALTERAÇÃO 1: Adicionado 'name' à assinatura ---
+def gate_xor(t1, t2, name):
+    w1, d1=t1
+    w2, d2=t2
+
+    #w=BitVec(f"xor_w{z3.get_var_index(0)}", 1)
+    # --- ALTERAÇÃO 2: Usar 'name' em vez de "xor_w" ---
+    w=BitVec(name, 1)
+    ww=w1^w2
+    d=Or(d1, d2)
+
+    rest=Or(d, w==ww)
+    return (w, d), rest
+
+def gate_and(t1, t2, falha):
+    w1, d1=t1
+    w2, d2=t2
+    
+    #w=BitVec(f"and_w{z3.get_var_index(0)}", 1)
+    w=BitVec("and_w", 1)
+    ww=w1&w2
+    d=Or(d1, d2, falha) #falha aqui pq se ela falha entao a saida tbm
+
+    rest=Or(d, w==ww)
+    return (w, d), rest  
+    
+def gate_maj(t1, t2, t3):
+    w1, d1=t1
+    w2, d2=t2
+    w3, d3=t3
+
+    #w=BitVec(f"maj_w{z3.get_var_index(0)}", 1)
+    w=BitVec("maj_w", 1)
+    maj=(w1&w2) | (w1&w3) | (w2&w3)
+    d=Or(d1, d2, d3)
+
+    rest=Or(d, w==maj)
+    return (w, d), rest
+
+def gate_prod(vec_x, x_bits):
+    assert len(vec_x)==len(x_bits)
+    tam=len(vec_x)
+
+    lista=[]
+
+    for i in range(tam):
+        bit=BitVecVal(int(vec_x[i]), 1)
+        x_bit=x_bits[i]
+        lista.append(bit & x_bit)
+
+    if not lista:
+        res=BitVecVal(0, 1)
+    
+    else:
+        res=lista[0]
+        for i in range(1, tam):
+            res=res ^ lista[i]
+    
+    return (res, BoolVal(False))
+
+#
+# ... (as tuas gates e o gate_prod ficam aqui em cima, como já estão) ...
+#
+
+# --- COLA ESTA NOVA FUNÇÃO AQUI ---
+def build_smt_model(solver_obj, n, lista_params):
+    """
+    Constrói o modelo SMT no objeto 'solver_obj' (Solver ou Optimize).
+    Retorna as variáveis simbólicas chave.
+    """
+    
+    x_bits=[]
+    for i in range(n):
+        x_bits.append(BitVec(f'x_{i}', 1))
+
+    #reverter porque bits menos significativos primeiro
+    x_input=Concat(list(reversed(x_bits)))
+
+    falhas=[]
+    saidas=[]
+
+    for i in range(n):
+        o, a, b, c = lista_params[i] # Usa os parâmetros já gerados
+
+        o_wd=(BitVecVal(o, 1), BoolVal(False))
+
+        a_x_wd=gate_prod(a, x_bits)
+        b_x_wd=gate_prod(b, x_bits)
+        c_x_wd=gate_prod(c, x_bits)
+
+        # Bandeiras de falha 'and'
+        and1=Bool(f'and1_{i}')
+        and2=Bool(f'and2_{i}')
+        and3=Bool(f'and3_{i}')
+        falhas.extend([and1, and2, and3])
+
+        and1_wd, c1=gate_and(b_x_wd, c_x_wd, and1)
+        and2_wd, c2=gate_and(b_x_wd, c_x_wd, and2)
+        and3_wd, c3=gate_and(b_x_wd, c_x_wd, and3)
+
+        solver_obj.add(c1)
+        solver_obj.add(c2)
+        solver_obj.add(c3)
+
+        maj_wd, c_maj=gate_maj(and1_wd, and2_wd, and3_wd)
+        solver_obj.add(c_maj)
+
+        quadrado_maj=maj_wd
+
+        #o ^ (a . x)
+        # --- ALTERAÇÃO 3: Passar nome único f'xor_A_{i}' ---
+        xor_wd1, c_xor1=gate_xor(o_wd, a_x_wd, f'xor_A_{i}')
+        # --- ALTERAÇÃO 4: Passar nome único f'xor_B_{i}' ---
+        xor_wd2, c_xor2=gate_xor(xor_wd1, quadrado_maj, f'xor_B_{i}')
+        
+        solver_obj.add(c_xor1)
+        solver_obj.add(c_xor2)
+
+        saidas.append(xor_wd2)
+    
+    print(f"\nModelo SMT (re)construído com {type(solver_obj)}.")
+    print(f"  - {n} variáveis 'x_bits' criadas.")
+    print(f"  - {len(falhas)} variáveis 'falhas' criadas.")
+    print(f"  - {len(saidas)} variáveis 'saidas' criadas.")
+    
+    # Retorna as variáveis que precisamos de usar fora
+    return x_bits, falhas, saidas, x_input
+
+
+# --- SUBSTITUI A TUA 'main' ANTIGA POR ESTA ---
+def main():
+    # --- GERAÇÃO DE PARÂMETROS (Igual a antes) ---
+    semente_s=np.random.SeedSequence(s.tolist())
+    print(semente_s) #debug
+    rng_s=np.random.default_rng(semente_s)
+    print(rng_s) #debug
+    sub_seeds=rng_s.integers(low=0, high=2**64, size=n, dtype=np.uint64)
+    lista_params =[] # Mudei o nome para 'lista_params'
+    for i in range(n):
+        rng_sub=np.random.default_rng(sub_seeds[i])
+        a=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
+        b=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
+        c=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
+        a_z=produto_int(a, z)
+        b_z=produto_int(b, z)
+        c_z=produto_int(c, z)
+        o=a_z ^ (b_z & c_z)
+        lista_params.append((int(o), a, b, c))
+
+    print("-------------------------------------------------")
+    print(f"Geração de parâmetros concluída.")
+    print(f"Total de conjuntos de parâmetros gerados: {len(lista_params)}")
+    # ... (os teus prints de p0 e p1 podem ficar aqui) ...
+
+
+    # -----------------------------------------------------------------
+    # --- SOLUÇÃO (PARTE 2) ---
+    # -----------------------------------------------------------------
+    print("\n--- Tarefa 2: Encontrar um 'falso segredo' z' ---")
+    
+    # 1. Criar o Solver e CONSTRUIR O MODELO
+    solver_p2 = Solver()
+    # Chama a nova função!
+    x_bits_p2, falhas_p2, saidas_p2, _ = build_smt_model(solver_p2, n, lista_params)
+
+    # 2. Adicionar restrições da Parte 2
+    print("A adicionar restrição (P2): Saída (w) == 0.")
+    for (w, d) in saidas_p2:
+        solver_p2.add(w == 0)
+
+    print("A adicionar restrição (P2): Pelo menos uma falha.")
+    solver_p2.add(Or(falhas_p2)) 
+
+    # 3. Resolver
+    print("A verificar o solver (solver_p2.check())...")
+    check_p2 = solver_p2.check()
+
+    if check_p2 == sat:
+        print("\n[+] (P2) SATISFATÍVEL: Encontrada uma solução!")
+        m_p2 = solver_p2.model()
+        z_prime_list = [m_p2.eval(x_bits_p2[i]).as_long() for i in range(n)]
+        z_prime = np.array(z_prime_list, dtype=np.uint8)
+        
+        print(f"  - Segredo Original (z) : {z}")
+        print(f"  - Estimativa (z')     : {z_prime}")
+        
+        if np.array_equal(z, z_prime):
+            print("  -> (Nota: A estimativa z' é IGUAL ao segredo original z.)")
+        else:
+            print("  -> (Nota: Encontrado z' DIFERENTE do segredo original!)")
+
+        falhas_ocorridas_p2 = []
+        for f in falhas_p2:
+            if m_p2.eval(f): 
+                falhas_ocorridas_p2.append(str(f))
+        
+        print(f"\n  - (P2) Total de falhas 'and' ocorridas: {len(falhas_ocorridas_p2)}")
+        # print(f"  - Lista de falhas: {falhas_ocorridas_p2}") # Descomentar se quiser ver
+    
+    elif check_p2 == unsat:
+        print("\n[-] (P2) INSATISFATÍVEL.")
+    
+    else:
+        print(f"\n[?] (P2) O Solver retornou: {check_p2}")
+            
+    # -----------------------------------------------------------------
+    # --- SOLUÇÃO (PARTE 3) ---
+    # -----------------------------------------------------------------
+    print("\n--- Tarefa 3: Maximizar falhas com 'z' conhecido ---")
+    
+    # 1. Criar o Otimizador e CONSTRUIR O MODELO
+    opt = Optimize()
+    # Chama a MESMA função!
+    x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista_params)
+
+    # 2. Adicionar restrições da Parte 3
+    print("A adicionar restrição (P3): Input 'x' deve ser o segredo 'z'.")
+    for i in range(n):
+        opt.add(x_bits_p3[i] == int(z[i]))
+
+    print("A adicionar restrição (P3): Saída (w) deve ser 0.")
+    for (w, d) in saidas_p3:
+        opt.add(w == 0)
+
+    # 3. Definir o Objetivo de Maximização
+    num_falhas = Sum([If(f, 1, 0) for f in falhas_p3])
+    
+    print("A definir objetivo (P3): Maximizar o número total de falhas 'and'.")
+    opt.maximize(num_falhas) # <-- Erro de digitação meu, corrigido abaixo
+
+    # 4. Resolver a otimização
+    print("A verificar o otimizador (opt.check())...")
+    check_p3 = opt.check()
+
+    if check_p3 == sat:
+        print("\n[+] (P3) SATISFATÍVEL: Encontrada uma solução ótima!")
+        m_p3 = opt.model()
+        max_falhas = m_p3.eval(num_falhas).as_long()
+        
+        print(f"  - Input 'x'           : {z} (o segredo original, como forçado)")
+        print(f"  - Saída do circuito   : 0^n (como forçado)")
+        print(f"  - NÚMERO MÁXIMO DE FALHAS: {max_falhas}")
+        
+        falhas_ocorridas_p3 = []
+        for f in falhas_p3:
+            if m_p3.eval(f): 
+                falhas_ocorridas_p3.append(str(f))
+        
+        print(f"  - Total de {len(falhas_ocorridas_p3)} falhas ativadas (de {len(falhas_p3)} possíveis).")
+
+    elif check_p3 == unsat:
+        print("\n[-] (P3) INSATISFATÍVEL: Não há solução.")
+    
+    else:
+        print(f"\n[?] (P3) O Otimizador retornou: {check_p3}")
+
+
+if __name__ == "__main__":
+    main()
