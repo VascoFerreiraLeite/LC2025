@@ -4,9 +4,9 @@
 from z3 import *
 import numpy as np
 
+n = int(input("Escreva o n: ")) #n=200 #teste
+k = int(input("Escreve o k: ")) #k=512 #teste
 
-n=200 #teste
-k=512 #teste
 rng=np.random.default_rng(12345)
 # print(rng) #debug
 z=rng.integers(low=0, high=2, size=n, dtype=np.uint8)
@@ -23,7 +23,6 @@ def produto_int(a, b):
         res=res^prod
     return res
 
-
 def gate_xor(t1, t2, name):
     w1, d1=t1
     w2, d2=t2
@@ -35,23 +34,23 @@ def gate_xor(t1, t2, name):
     rest=Or(d, w==ww)
     return (w, d), rest
 
-def gate_and(t1, t2, falha, name): # <-- Alterado (adicionado name)
+def gate_and(t1, t2, falha, name): 
     w1, d1=t1
     w2, d2=t2
     
-    w=BitVec(name, 1) # <-- Alterado (usa name)
+    w=BitVec(name, 1)
     ww=w1&w2
     d=Or(d1, d2, falha) #falha aqui pq se ela falha entao a saida tbm
 
     rest=Or(d, w==ww)
     return (w, d), rest  
     
-def gate_maj(t1, t2, t3, name): # <-- Alterado (adicionado name)
+def gate_maj(t1, t2, t3, name):
     w1, d1=t1
     w2, d2=t2
     w3, d3=t3
 
-    w=BitVec(name, 1) # <-- Alterado (usa name)
+    w=BitVec(name, 1) 
     maj=(w1&w2) | (w1&w3) | (w2&w3)
     d=Or(d1, d2, d3)
 
@@ -75,17 +74,12 @@ def gate_prod(vec_x, x_bits):
     else:
         res=lista[0]
         for i in range(1, tam):
-            res=res ^ lista[i]
+            res=res^lista[i]
     
     return (res, BoolVal(False))
 
 
-def build_smt_model(solver_obj, n, lista_params):
-    """
-    Constrói o modelo SMT no objeto 'solver_obj' (Solver ou Optimize).
-    Retorna as variáveis simbólicas chave.
-    """
-    
+def build_smt_model(solver, n, lista):
     x_bits=[]
     for i in range(n):
         x_bits.append(BitVec(f'x_{i}', 1))
@@ -97,7 +91,7 @@ def build_smt_model(solver_obj, n, lista_params):
     saidas=[]
 
     for i in range(n):
-        o, a, b, c = lista_params[i] # Usa os parâmetros já gerados
+        o, a, b, c=lista[i]
 
         o_wd=(BitVecVal(o, 1), BoolVal(False))
 
@@ -111,18 +105,16 @@ def build_smt_model(solver_obj, n, lista_params):
         and3=Bool(f'and3_{i}')
         falhas.extend([and1, and2, and3])
 
-        # --- Alterado (passa nomes únicos) ---
         and1_wd, c1=gate_and(b_x_wd, c_x_wd, and1, f'and1_w_{i}')
         and2_wd, c2=gate_and(b_x_wd, c_x_wd, and2, f'and2_w_{i}')
         and3_wd, c3=gate_and(b_x_wd, c_x_wd, and3, f'and3_w_{i}')
 
-        solver_obj.add(c1)
-        solver_obj.add(c2)
-        solver_obj.add(c3)
+        solver.add(c1)
+        solver.add(c2)
+        solver.add(c3)
 
-        # --- Alterado (passa nome único) ---
         maj_wd, c_maj=gate_maj(and1_wd, and2_wd, and3_wd, f'maj_w_{i}')
-        solver_obj.add(c_maj)
+        solver.add(c_maj)
 
         quadrado_maj=maj_wd
 
@@ -130,29 +122,28 @@ def build_smt_model(solver_obj, n, lista_params):
         xor_wd1, c_xor1=gate_xor(o_wd, a_x_wd, f'xor_A_{i}')
         xor_wd2, c_xor2=gate_xor(xor_wd1, quadrado_maj, f'xor_B_{i}')
         
-        solver_obj.add(c_xor1)
-        solver_obj.add(c_xor2)
+        solver.add(c_xor1)
+        solver.add(c_xor2)
 
         saidas.append(xor_wd2)
     
-    print(f"\nModelo SMT (re)construído com {type(solver_obj)}.")
+    print(f"\nModelo SMT (re)construído com {type(solver)}.")
     print(f"  - {n} variáveis 'x_bits' criadas.")
     print(f"  - {len(falhas)} variáveis 'falhas' criadas.")
     print(f"  - {len(saidas)} variáveis 'saidas' criadas.")
     
-    # Retorna as variáveis que precisamos de usar fora
+    #retorna as variaveis que precisamos de usar fora
     return x_bits, falhas, saidas, x_input
 
 
 
 def main():
-    # --- GERAÇÃO DE PARÂMETROS 
     semente_s=np.random.SeedSequence(s.tolist())
     # print(semente_s) #debug
     rng_s=np.random.default_rng(semente_s)
     # print(rng_s) #debug
     sub_seeds=rng_s.integers(low=0, high=2**64, size=n, dtype=np.uint64)
-    lista_params =[]
+    lista =[]
     for i in range(n):
         rng_sub=np.random.default_rng(sub_seeds[i])
         a=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
@@ -162,24 +153,18 @@ def main():
         b_z=produto_int(b, z)
         c_z=produto_int(c, z)
         o=a_z ^ (b_z & c_z)
-        lista_params.append((int(o), a, b, c))
+        lista.append((int(o), a, b, c))
 
     print("-------------------------------------------------")
     print(f"Geração de parâmetros concluída.")
-    print(f"Total de conjuntos de parâmetros gerados: {len(lista_params)}")
+    print(f"Total de conjuntos de parâmetros gerados: {len(lista)}")
 
 
-    # -----------------------------------------------------------------
-    # --- SOLUÇÃO (PARTE 2) ---
-    # -----------------------------------------------------------------
-    print("\n--- Tarefa 2: Encontrar um 'falso segredo' z' ---")
+    print("\n--- Ponto 2: Encontrar um 'falso segredo' z' ---")
     
-    # 1. Criar o Solver e CONSTRUIR O MODELO
     solver_p2 = Solver()
-    # Chama a nova função!
-    x_bits_p2, falhas_p2, saidas_p2, _ = build_smt_model(solver_p2, n, lista_params)
+    x_bits_p2, falhas_p2, saidas_p2, _=build_smt_model(solver_p2, n, lista)
 
-    # 2. Adicionar restrições da Parte 2
     print("A adicionar restrição (P2): Saída (w) == 0.")
     for (w, d) in saidas_p2:
         solver_p2.add(w == 0)
@@ -225,12 +210,12 @@ def main():
     # -----------------------------------------------------------------
     # --- SOLUÇÃO (PARTE 3) ---
     # -----------------------------------------------------------------
-    print("\n--- Tarefa 3: Maximizar falhas com 'z' conhecido ---")
+    print("\n--- Ponto 3: Maximizar falhas com 'z' conhecido ---")
     
     # 1. Criar o Otimizador e CONSTRUIR O MODELO
     opt = Optimize()
     
-    x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista_params)
+    x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista)
 
     # 2. Adicionar restrições da Parte 3
     print("A adicionar restrição (P3): Input 'x' deve ser o segredo 'z'.")
