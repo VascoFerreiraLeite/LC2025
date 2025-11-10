@@ -167,11 +167,11 @@ def main():
     solver_p2 = Solver()
     x_bits_p2, falhas_p2, saidas_p2, x_input_p2=build_smt_model(solver_p2, n, lista)
 
-    print("A adicionar restrição (P2): Saída (w) == 0.")
+    print("A adicionar restrição: Saída (w) == 0.")
     for (w, d) in saidas_p2:
         solver_p2.add(w==BitVecVal(0,1))
 
-    print("A adicionar restrição (P2): Pelo menos uma falha.")
+    print("A adicionar restrição: Pelo menos uma falha.")
     solver_p2.add(Or(falhas_p2)) 
 
     z_int = 0
@@ -179,7 +179,7 @@ def main():
         z_int += int(z[i]) * (2**i)
     z_original_z3 = BitVecVal(z_int, n)
     
-    print("A adicionar restrição (P2): Input z' != z.")
+    print("A adicionar restrição: Input z' != z.")
     solver_p2.add(x_input_p2 != z_original_z3)
 
     # 3. Resolver
@@ -187,7 +187,7 @@ def main():
     check_p2 = solver_p2.check()
 
     if check_p2 == sat:
-        print("\n[+] (P2) SATISFATÍVEL: Encontrada uma solução!")
+        print("\n -> SATISFAZIVEL: Encontrada uma solução!")
         m_p2 = solver_p2.model()
         
         # Temos de extrair o 'z' (que são os x_bits) ANTES de imprimir o z original
@@ -199,23 +199,23 @@ def main():
         print(f"  - Estimativa (z')     : {z_prime}")
         
         if np.array_equal(z, z_prime):
-            print("  -> (Nota: A estimativa z' é IGUAL ao segredo original z.)")
+            print("  (Nota: A estimativa z' é IGUAL ao segredo original z.)")
         else:
-            print("  -> (Nota: Encontrado z' DIFERENTE do segredo original!)")
+            print("  (Nota: Encontrado z' DIFERENTE do segredo original!)")
 
         falhas_ocorridas_p2 = []
         for f in falhas_p2:
             if m_p2.eval(f): 
                 falhas_ocorridas_p2.append(str(f))
         
-        print(f"\n  - (P2) Total de falhas 'and' ocorridas: {len(falhas_ocorridas_p2)}")
+        print(f"\n  - Total de falhas 'and' ocorridas: {len(falhas_ocorridas_p2)}")
         # print(f"  - Lista de falhas: {falhas_ocorridas_p2}") # Descomentar se quiser ver
     
     elif check_p2 == unsat:
-        print("\n[-] (P2) INSATISFATÍVEL.")
+        print("\n -> INSATISFAZIVEL.")
     
     else:
-        print(f"\n[?] (P2) O Solver retornou: {check_p2}")
+        print(f"\n O Solver retornou: {check_p2}")
             
     # -----------------------------------------------------------------
     # --- SOLUÇÃO (PARTE 3) ---
@@ -228,18 +228,18 @@ def main():
     x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista)
 
     # 2. Adicionar restrições da Parte 3
-    print("A adicionar restrição (P3): Input 'x' deve ser o segredo 'z'.")
+    print("A adicionar restrição: Input 'x' deve ser o segredo 'z'.")
     for i in range(n):
         opt.add(x_bits_p3[i] == int(z[i]))
 
-    print("A adicionar restrição (P3): Saída (w) deve ser 0.")
+    print("A adicionar restrição: Saída (w) deve ser 0.")
     for (w, d) in saidas_p3:
         opt.add(w==BitVecVal(0,1))
 
     # 3. Definir o Objetivo de Maximização
     num_falhas = Sum([If(f, 1, 0) for f in falhas_p3])
     
-    print("A definir objetivo (P3): Maximizar o número total de falhas 'and'.")
+    print("A definir objetivo: Maximizar o número total de falhas 'and'.")
     opt.maximize(num_falhas) 
 
     # 4. Resolver a otimização
@@ -247,7 +247,7 @@ def main():
     check_p3 = opt.check()
 
     if check_p3 == sat:
-        print("\n[+] (P3) SATISFATÍVEL: Encontrada uma solução ótima!")
+        print("\n -> SATISFAZIVEL: Encontrada uma solução ótima!")
         m_p3 = opt.model()
         max_falhas = m_p3.eval(num_falhas).as_long()
         
@@ -263,10 +263,10 @@ def main():
         print(f"  - Total de {len(falhas_ocorridas_p3)} falhas ativadas (de {len(falhas_p3)} possíveis).")
 
     elif check_p3 == unsat:
-        print("\n[-] (P3) INSATISFATÍVEL: Não há solução.")
+        print("\n -> INSATISFAZIVEL: Não há solução.")
     
     else:
-        print(f"\n[?] (P3) O Otimizador retornou: {check_p3}")
+        print(f"\n O Otimizador retornou: {check_p3}")
 
 
 if __name__ == "__main__":
