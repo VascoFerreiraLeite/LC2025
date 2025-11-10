@@ -1,6 +1,3 @@
-#import networkx as nx
-#import matplotlib.pyplot as plt
-#from ortools.linear_solver import pywraplp
 from z3 import *
 import numpy as np
 
@@ -8,11 +5,9 @@ n = int(input("Escreva o n: ")) #n=200 #teste
 k = int(input("Escreve o k: ")) #k=512 #teste
 
 rng=np.random.default_rng(12345)
-# print(rng) #debug
 z=rng.integers(low=0, high=2, size=n, dtype=np.uint8)
 s=rng.integers(low=0, high=2, size=k, dtype=np.uint8)
-# print(z) #debug
-# print(s) #debug
+
 
 def produto_int(a, b):
     assert len(a)==len(b)
@@ -99,7 +94,7 @@ def build_smt_model(solver, n, lista):
         b_x_wd=gate_prod(b, x_bits)
         c_x_wd=gate_prod(c, x_bits)
 
-        # Bandeiras de falha 'and'
+        #bandeiras de falha 'and'
         and1=Bool(f'and1_{i}')
         and2=Bool(f'and2_{i}')
         and3=Bool(f'and3_{i}')
@@ -139,9 +134,7 @@ def build_smt_model(solver, n, lista):
 
 def main():
     semente_s=np.random.SeedSequence(s.tolist())
-    # print(semente_s) #debug
     rng_s=np.random.default_rng(semente_s)
-    # print(rng_s) #debug
     sub_seeds=rng_s.integers(low=0, high=2**64, size=n, dtype=np.uint64)
     lista =[]
     for i in range(n):
@@ -182,7 +175,6 @@ def main():
     print("A adicionar restrição: Input z' != z.")
     solver_p2.add(x_input_p2 != z_original_z3)
 
-    # 3. Resolver
     print("A verificar o solver (solver_p2.check())...")
     check_p2 = solver_p2.check()
 
@@ -190,11 +182,10 @@ def main():
         print("\n -> SATISFAZIVEL: Encontrada uma solução!")
         m_p2 = solver_p2.model()
         
-        # Temos de extrair o 'z' (que são os x_bits) ANTES de imprimir o z original
+        #temos de extrair o 'z' (que são os x_bits) ANTES de imprimir o z original
         z_prime_list = [m_p2.eval(x_bits_p2[i]).as_long() for i in range(n)]
         z_prime = np.array(z_prime_list, dtype=np.uint8)
         
-        # Imprime o 'z' original (lido do topo do script) para comparação
         print(f"  - Segredo Original (z) : {z}")
         print(f"  - Estimativa (z')     : {z_prime}")
         
@@ -209,25 +200,21 @@ def main():
                 falhas_ocorridas_p2.append(str(f))
         
         print(f"\n  - Total de falhas 'and' ocorridas: {len(falhas_ocorridas_p2)}")
-        # print(f"  - Lista de falhas: {falhas_ocorridas_p2}") # Descomentar se quiser ver
+        # print(f"  - Lista de falhas: {falhas_ocorridas_p2}") #descomentar pa ver
     
     elif check_p2 == unsat:
         print("\n -> INSATISFAZIVEL.")
     
     else:
         print(f"\n O Solver retornou: {check_p2}")
-            
-    # -----------------------------------------------------------------
-    # --- SOLUÇÃO (PARTE 3) ---
-    # -----------------------------------------------------------------
+
+
     print("\n--- Ponto 3: Maximizar falhas com 'z' conhecido ---")
     
-    # 1. Criar o Otimizador e CONSTRUIR O MODELO
     opt = Optimize()
     
     x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista)
 
-    # 2. Adicionar restrições da Parte 3
     print("A adicionar restrição: Input 'x' deve ser o segredo 'z'.")
     for i in range(n):
         opt.add(x_bits_p3[i] == int(z[i]))
@@ -236,13 +223,11 @@ def main():
     for (w, d) in saidas_p3:
         opt.add(w==BitVecVal(0,1))
 
-    # 3. Definir o Objetivo de Maximização
     num_falhas = Sum([If(f, 1, 0) for f in falhas_p3])
     
     print("A definir objetivo: Maximizar o número total de falhas 'and'.")
     opt.maximize(num_falhas) 
 
-    # 4. Resolver a otimização
     print("A verificar o otimizador (opt.check())...")
     check_p3 = opt.check()
 
