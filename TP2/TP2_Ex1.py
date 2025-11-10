@@ -149,10 +149,12 @@ def main():
         a=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
         b=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
         c=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
+
         a_z=produto_int(a, z)
         b_z=produto_int(b, z)
         c_z=produto_int(c, z)
         o=a_z ^ (b_z & c_z)
+
         lista.append((int(o), a, b, c))
 
     print("-------------------------------------------------")
@@ -163,14 +165,22 @@ def main():
     print("\n--- Ponto 2: Encontrar um 'falso segredo' z' ---")
     
     solver_p2 = Solver()
-    x_bits_p2, falhas_p2, saidas_p2, _=build_smt_model(solver_p2, n, lista)
+    x_bits_p2, falhas_p2, saidas_p2, x_input_p2=build_smt_model(solver_p2, n, lista)
 
     print("A adicionar restrição (P2): Saída (w) == 0.")
     for (w, d) in saidas_p2:
-        solver_p2.add(w == 0)
+        solver_p2.add(w==BitVecVal(0,1))
 
     print("A adicionar restrição (P2): Pelo menos uma falha.")
     solver_p2.add(Or(falhas_p2)) 
+
+    z_int = 0
+    for i in range(n):
+        z_int += int(z[i]) * (2**i)
+    z_original_z3 = BitVecVal(z_int, n)
+    
+    print("A adicionar restrição (P2): Input z' != z.")
+    solver_p2.add(x_input_p2 != z_original_z3)
 
     # 3. Resolver
     print("A verificar o solver (solver_p2.check())...")
@@ -224,7 +234,7 @@ def main():
 
     print("A adicionar restrição (P3): Saída (w) deve ser 0.")
     for (w, d) in saidas_p3:
-        opt.add(w == 0)
+        opt.add(w==BitVecVal(0,1))
 
     # 3. Definir o Objetivo de Maximização
     num_falhas = Sum([If(f, 1, 0) for f in falhas_p3])
