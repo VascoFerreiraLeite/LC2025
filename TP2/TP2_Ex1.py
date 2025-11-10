@@ -5,14 +5,14 @@ from z3 import *
 import numpy as np
 
 
-n=10 #teste
-k=5 #teste
+n=200 #teste
+k=512 #teste
 rng=np.random.default_rng(12345)
-print(rng) #debug
+# print(rng) #debug
 z=rng.integers(low=0, high=2, size=n, dtype=np.uint8)
 s=rng.integers(low=0, high=2, size=k, dtype=np.uint8)
-print(z) #debug
-print(s) #debug
+# print(z) #debug
+# print(s) #debug
 
 def produto_int(a, b):
     assert len(a)==len(b)
@@ -23,13 +23,11 @@ def produto_int(a, b):
         res=res^prod
     return res
 
-# --- ALTERAÇÃO 1: Adicionado 'name' à assinatura ---
+
 def gate_xor(t1, t2, name):
     w1, d1=t1
     w2, d2=t2
 
-    #w=BitVec(f"xor_w{z3.get_var_index(0)}", 1)
-    # --- ALTERAÇÃO 2: Usar 'name' em vez de "xor_w" ---
     w=BitVec(name, 1)
     ww=w1^w2
     d=Or(d1, d2)
@@ -37,25 +35,23 @@ def gate_xor(t1, t2, name):
     rest=Or(d, w==ww)
     return (w, d), rest
 
-def gate_and(t1, t2, falha):
+def gate_and(t1, t2, falha, name): # <-- Alterado (adicionado name)
     w1, d1=t1
     w2, d2=t2
     
-    #w=BitVec(f"and_w{z3.get_var_index(0)}", 1)
-    w=BitVec("and_w", 1)
+    w=BitVec(name, 1) # <-- Alterado (usa name)
     ww=w1&w2
     d=Or(d1, d2, falha) #falha aqui pq se ela falha entao a saida tbm
 
     rest=Or(d, w==ww)
     return (w, d), rest  
     
-def gate_maj(t1, t2, t3):
+def gate_maj(t1, t2, t3, name): # <-- Alterado (adicionado name)
     w1, d1=t1
     w2, d2=t2
     w3, d3=t3
 
-    #w=BitVec(f"maj_w{z3.get_var_index(0)}", 1)
-    w=BitVec("maj_w", 1)
+    w=BitVec(name, 1) # <-- Alterado (usa name)
     maj=(w1&w2) | (w1&w3) | (w2&w3)
     d=Or(d1, d2, d3)
 
@@ -83,11 +79,7 @@ def gate_prod(vec_x, x_bits):
     
     return (res, BoolVal(False))
 
-#
-# ... (as tuas gates e o gate_prod ficam aqui em cima, como já estão) ...
-#
 
-# --- COLA ESTA NOVA FUNÇÃO AQUI ---
 def build_smt_model(solver_obj, n, lista_params):
     """
     Constrói o modelo SMT no objeto 'solver_obj' (Solver ou Optimize).
@@ -119,23 +111,23 @@ def build_smt_model(solver_obj, n, lista_params):
         and3=Bool(f'and3_{i}')
         falhas.extend([and1, and2, and3])
 
-        and1_wd, c1=gate_and(b_x_wd, c_x_wd, and1)
-        and2_wd, c2=gate_and(b_x_wd, c_x_wd, and2)
-        and3_wd, c3=gate_and(b_x_wd, c_x_wd, and3)
+        # --- Alterado (passa nomes únicos) ---
+        and1_wd, c1=gate_and(b_x_wd, c_x_wd, and1, f'and1_w_{i}')
+        and2_wd, c2=gate_and(b_x_wd, c_x_wd, and2, f'and2_w_{i}')
+        and3_wd, c3=gate_and(b_x_wd, c_x_wd, and3, f'and3_w_{i}')
 
         solver_obj.add(c1)
         solver_obj.add(c2)
         solver_obj.add(c3)
 
-        maj_wd, c_maj=gate_maj(and1_wd, and2_wd, and3_wd)
+        # --- Alterado (passa nome único) ---
+        maj_wd, c_maj=gate_maj(and1_wd, and2_wd, and3_wd, f'maj_w_{i}')
         solver_obj.add(c_maj)
 
         quadrado_maj=maj_wd
 
         #o ^ (a . x)
-        # --- ALTERAÇÃO 3: Passar nome único f'xor_A_{i}' ---
         xor_wd1, c_xor1=gate_xor(o_wd, a_x_wd, f'xor_A_{i}')
-        # --- ALTERAÇÃO 4: Passar nome único f'xor_B_{i}' ---
         xor_wd2, c_xor2=gate_xor(xor_wd1, quadrado_maj, f'xor_B_{i}')
         
         solver_obj.add(c_xor1)
@@ -152,15 +144,15 @@ def build_smt_model(solver_obj, n, lista_params):
     return x_bits, falhas, saidas, x_input
 
 
-# --- SUBSTITUI A TUA 'main' ANTIGA POR ESTA ---
+
 def main():
-    # --- GERAÇÃO DE PARÂMETROS (Igual a antes) ---
+    # --- GERAÇÃO DE PARÂMETROS 
     semente_s=np.random.SeedSequence(s.tolist())
-    print(semente_s) #debug
+    # print(semente_s) #debug
     rng_s=np.random.default_rng(semente_s)
-    print(rng_s) #debug
+    # print(rng_s) #debug
     sub_seeds=rng_s.integers(low=0, high=2**64, size=n, dtype=np.uint64)
-    lista_params =[] # Mudei o nome para 'lista_params'
+    lista_params =[]
     for i in range(n):
         rng_sub=np.random.default_rng(sub_seeds[i])
         a=rng_sub.integers(0, 2, size=n, dtype=np.uint8)
@@ -175,7 +167,6 @@ def main():
     print("-------------------------------------------------")
     print(f"Geração de parâmetros concluída.")
     print(f"Total de conjuntos de parâmetros gerados: {len(lista_params)}")
-    # ... (os teus prints de p0 e p1 podem ficar aqui) ...
 
 
     # -----------------------------------------------------------------
@@ -203,9 +194,12 @@ def main():
     if check_p2 == sat:
         print("\n[+] (P2) SATISFATÍVEL: Encontrada uma solução!")
         m_p2 = solver_p2.model()
+        
+        # Temos de extrair o 'z' (que são os x_bits) ANTES de imprimir o z original
         z_prime_list = [m_p2.eval(x_bits_p2[i]).as_long() for i in range(n)]
         z_prime = np.array(z_prime_list, dtype=np.uint8)
         
+        # Imprime o 'z' original (lido do topo do script) para comparação
         print(f"  - Segredo Original (z) : {z}")
         print(f"  - Estimativa (z')     : {z_prime}")
         
@@ -235,7 +229,7 @@ def main():
     
     # 1. Criar o Otimizador e CONSTRUIR O MODELO
     opt = Optimize()
-    # Chama a MESMA função!
+    
     x_bits_p3, falhas_p3, saidas_p3, _ = build_smt_model(opt, n, lista_params)
 
     # 2. Adicionar restrições da Parte 3
@@ -251,7 +245,7 @@ def main():
     num_falhas = Sum([If(f, 1, 0) for f in falhas_p3])
     
     print("A definir objetivo (P3): Maximizar o número total de falhas 'and'.")
-    opt.maximize(num_falhas) # <-- Erro de digitação meu, corrigido abaixo
+    opt.maximize(num_falhas) 
 
     # 4. Resolver a otimização
     print("A verificar o otimizador (opt.check())...")
