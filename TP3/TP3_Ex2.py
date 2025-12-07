@@ -1,7 +1,7 @@
 from z3 import *
 
 def main():
-    print("=== INÍCIO DA VERIFICAÇÃO OTIMIZADA (EEA 16-bits) ===\n")
+    print("--- INÍCIO DA VERIFICAÇÃO OTIMIZADA ---\n")
 
     # 1. Variáveis de estado
     a, b = BitVecs('a b', 16)
@@ -37,14 +37,13 @@ def main():
         t_linha_prox == t - q * t_linha
     )
 
-    # =========================================================================
     # PARTE A: PROVA DE CORREÇÃO (k-Indução)
-    # =========================================================================
-    print("--- PARTE A: k-Indução ---")
+
+    print("-> PARTE A: k-Indução")
     S = Solver()
     
     # Passo Base
-    print("1. Verificando Passo Base...")
+    print("1. A verificar Passo Base...")
     init_cond = And(r == a, r_linha == b, s == 1, s_linha == 0, t == 0, t_linha == 1)
     S.add(init_cond)
     S.add(Not(Invariante(r, s, t, r_linha, s_linha, t_linha)))
@@ -54,7 +53,7 @@ def main():
         print("   [FALHA] Passo Base.")
 
     # Passo Indutivo
-    print("2. Verificando Passo Indutivo (Com abstração de q)...")
+    print("2. A verificar Passo Indutivo (Com abstração de q)...")
     S.reset() # Limpar o solver para a nova prova
     S.add(a > 0, b > 0)
     
@@ -71,12 +70,11 @@ def main():
         print("   [SUCESSO] Passo Indutivo provado.")
     else:
         print("   [FALHA] Passo Indutivo falhou.")
-        # print(S.model())
+        print(S.model())
 
-    # =========================================================================
     # PARTE B: PROVA DE TERMINAÇÃO
-    # =========================================================================
-    print("\n--- PARTE B: Terminação ---")
+
+    print("\n-> PARTE B: Terminar")
     # Aqui precisamos mesmo da divisão (ou resto), não podemos abstrair o q.
     # Mas usamos URem (Unsigned Remainder) que é mais direto para o Z3 que a fórmula manual.
     
@@ -90,13 +88,13 @@ def main():
     # Propriedade: O novo r' tem de ser estritamente menor que o r' atual
     ranking = UGT(r_linha, prox_rl_real)
     
-    print("3. Verificando decrescimento estrito...")
+    print("3. A verificar decrescimento estrito...")
     S_term.add(Not(ranking))
     
     if S_term.check() == unsat:
-        print("   [SUCESSO] Terminação Provada.")
+        print("   [SUCESSO] Terminou")
     else:
-        print("   [FALHA] Terminação.")
+        print("   [FALHA] Ao terminar.")
 
 if __name__ == "__main__":
     main()
