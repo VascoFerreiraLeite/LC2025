@@ -1,38 +1,35 @@
 from z3 import *
 
-def imprimir_cabecalho(titulo):
-    print("\n" + "="*60)
-    print(f" {titulo}")
-    print("="*60)
 
-def problema_2a_CFA():
-    imprimir_cabecalho("PROBLEMA 2a: Identificação do CFA")
+def problema_2a():
+    print("--- PROBLEMA 2a: Identificação do CFA ---")
     
-    texto_cfa = """
-    1. LOCAIS (Estados de Controlo):
-       - L_start: Estado inicial antes da entrada no loop.
-       - L_loop : Estado 'cabeça' do ciclo while.
-       - L_end  : Estado final (terminação com sucesso).
+    print ( """
+1. LOCAIS (Estados de Controlo):
+   - L_start: Estado inicial antes da entrada no loop.
+   - L_loop : Estado 'cabeça' do ciclo while.
+   - L_end  : Estado final (terminação com sucesso).
 
-    2. GUARDAS (Condições de Transição):
-       - Guarda do Loop (L_loop -> L_loop): r' != 0
-       - Guarda de Saída (L_loop -> L_end): r' == 0
+2. GUARDAS (Condições de Transição):
+   - Guarda do Loop (L_loop -> L_loop): r' != 0
+   - Guarda de Saída (L_loop -> L_end): r' == 0
 
-    3. TRANSFORMADORES DE PREDICADOS (Weakest Pre-conditions):
-       - Inicialização (L_start -> L_loop):
-            (r, r', s, s', t, t') := (a, b, 1, 0, 0, 1)
+3. TRANSFORMADORES DE PREDICADOS (Weakest Pre-conditions):
+   - Inicialização (L_start -> L_loop):
+        (r, r', s, s', t, t') := (a, b, 1, 0, 0, 1)
        
-       - Corpo do Loop (L_loop -> L_loop):
-            q := r div r'
-            (r, r') := (r', r - q * r')
-            (s, s') := (s', s - q * s')
-            (t, t') := (t', t - q * t')
+   - Corpo do Loop (L_loop -> L_loop):
+        q := r div r'
+        (r, r') := (r', r - q * r')
+        (s, s') := (s', s - q * s')
+        (t, t') := (t', t - q * t')
     """
-    print(texto_cfa)
+    )
+
 
 def problema_2b_kinducao():
-    imprimir_cabecalho("PROBLEMA 2b: Verificação do Invariante (k-Indução)")
-    print("Objetivo: Provar que phi(a,b,r,s,t) == (a*s + b*t = r) é invariante.\n")
+    print("--- PROBLEMA 2b: Verificação do invariante (k-Indução) ---\n")
+    #print("Objetivo: Provar que phi(a,b,r,s,t) == (a*s + b*t = r) é invariante.\n")
 
     a, b = Ints('a b')
     r, r_p = Ints('r r_p')
@@ -108,16 +105,16 @@ def problema_2b_kinducao():
 
     if solver.check() == unsat:
         print("[SUCESSO] Passo: O invariante mantém-se após a transição.")
-        print(">> CONCLUSÃO: O predicado é um INVARIANTE válido.")
+        print(">> CONCLUSÃO: O predicado é um invariante válido.\n")
     else:
         print("[FALHA] Passo: Contra-exemplo encontrado.")
         print(solver.model())
     solver.pop()
     
-def problema_2c_terminacao():
-    imprimir_cabecalho("PROBLEMA 2c: Verificação da Terminação (Look-aheads)")
-    print("Objetivo: Provar que r' é uma 'Ranking Function' válida.")
-    print("(Deve ser limitada inferiormente e decrescer estritamente)\n")
+def problema_2c_final():
+    print("--- PROBLEMA 2c: Verificação da Terminação (Look-aheads) ---\n")
+    #print("Objetivo: Provar que r' é uma 'Ranking Function' válida.")
+    #print("(Deve ser limitada inferiormente e decrescer estritamente)\n")
 
     r, r_p = Ints('r r_p')
     r_p_new = Int('r_p_new')
@@ -159,13 +156,13 @@ def problema_2c_terminacao():
 
     if solver.check() == unsat:
         print("[SUCESSO] Decreasing: r' decresce estritamente a cada iteração.")
-        print(">> CONCLUSÃO: O programa TERMINA sempre.")
+        print(">> CONCLUSÃO: O programa termina sempre.\n")
     else:
         print("[FALHA] Decreasing: r' não decresce necessariamente.")
     solver.pop()
 
 if __name__ == "__main__":
-    problema_2a_CFA()
+    problema_2a()
     problema_2b_kinducao()
-    problema_2c_terminacao()
-    print("\n" + "="*60 + "\n Verificação Concluída.\n" + "="*60)
+    problema_2c_final()
+    print("--- Verificação Concluída ---")

@@ -1,100 +1,143 @@
 from z3 import *
 
-def main():
-    print("--- INÍCIO DA VERIFICAÇÃO OTIMIZADA ---\n")
 
-    # 1. Variáveis de estado
-    a, b = BitVecs('a b', 16)
-    r, r_linha = BitVecs('r r_linha', 16)
-    s, s_linha = BitVecs('s s_linha', 16)
-    t, t_linha = BitVecs('t t_linha', 16)
+def problema_2a():
+    print("--- PROBLEMA 2a: Identificação do CFA ---")
+    
+    print ( """
+1. LOCAIS (Estados de Controlo):
+   - L_start: Estado inicial antes da entrada no loop.
+   - L_loop : Estado 'cabeça' do ciclo while.
+   - L_end  : Estado final (terminação com sucesso).
 
-    # Variáveis do próximo estado
-    r_prox, r_linha_prox = BitVecs('r_next r_linha_next', 16)
-    s_prox, s_linha_prox = BitVecs('s_next s_linha_next', 16)
-    t_prox, t_linha_prox = BitVecs('t_next t_linha_next', 16)
+2. GUARDAS (Condições de Transição):
+   - Guarda do Loop (L_loop -> L_loop): r' != 0
+   - Guarda de Saída (L_loop -> L_end): r' == 0
 
-    # ### CORREÇÃO DE PERFORMANCE ###
-    # Em vez de calcular q = UDiv(r, r_linha), criamos q como uma variável livre.
-    # Se provarmos que funciona para QUALQUER q, então funciona para o q da divisão.
-    q = BitVec('q', 16)
-
-    # Invariante
-    def Invariante(_r, _s, _t, _rl, _sl, _tl):
-        return And(
-            a * _s + b * _t == _r,
-            a * _sl + b * _tl == _rl
-        )
-
-    # Transição Genérica (Independente da lógica da divisão, depende apenas da atualização linear)
-    transicao_loop = And(
-        r_linha != 0,
-        r_prox == r_linha,
-        r_linha_prox == r - q * r_linha, 
-        s_prox == s_linha,
-        s_linha_prox == s - q * s_linha,
-        t_prox == t_linha,
-        t_linha_prox == t - q * t_linha
+3. TRANSFORMADORES DE PREDICADOS (Weakest Pre-conditions):
+   - Inicialização (L_start -> L_loop):
+        (r, r', s, s', t, t') := (a, b, 1, 0, 0, 1)
+       
+   - Corpo do Loop (L_loop -> L_loop):
+        q := r div r'
+        (r, r') := (r', r - q * r')
+        (s, s') := (s', s - q * s')
+        (t, t') := (t', t - q * t')
+    """
     )
 
-    # PARTE A: PROVA DE CORREÇÃO (k-Indução)
 
-    print("-> PARTE A: k-Indução")
-    S = Solver()
+def problema_2b_kinducao():
+    print("--- PROBLEMA 2b: Verificação do invariante (k-Indução) ---\n")
+
+    a, b = Ints('a b')
+    r, r_p = Ints('r r_p')
+    s, s_p = Ints('s s_p')
+    t, t_p = Ints('t t_p')
+
+    r_new, r_p_new = Ints('r_new r_p_new')
+    s_new, s_p_new = Ints('s_new s_p_new')
+    t_new, t_p_new = Ints('t_new t_p_new')
+
+    def phi(a, b, r, s, t):
+        return (a * s + b * t == r)
+
+    solver = Solver()
+
+    global_constraints = And(a > 0, b > 0)
+
+    propriedade_base = And(
+        phi(a, b, a, 1, 0),    
+        phi(a, b, b, 0, 1)     
+    )
     
-    # Passo Base
-    print("1. A verificar Passo Base...")
-    init_cond = And(r == a, r_linha == b, s == 1, s_linha == 0, t == 0, t_linha == 1)
-    S.add(init_cond)
-    S.add(Not(Invariante(r, s, t, r_linha, s_linha, t_linha)))
-    if S.check() == unsat:
-        print("   [SUCESSO] Passo Base provado.")
+    solver.push()
+    solver.add(global_constraints)
+    solver.add(Not(propriedade_base))
+    
+    if solver.check() == unsat:
+        print("[SUCESSO] Base: O estado inicial satisfaz o invariante.")
     else:
-        print("   [FALHA] Passo Base.")
+        print("[FALHA] Base: O estado inicial viola o invariante.")
+    solver.pop()
 
-    # Passo Indutivo
-    print("2. A verificar Passo Indutivo (Com abstração de q)...")
-    S.reset() # Limpar o solver para a nova prova
-    S.add(a > 0, b > 0)
-    
-    # Hipótese: Invariante é verdade AGORA
-    S.add(Invariante(r, s, t, r_linha, s_linha, t_linha))
-    
-    # Acontece uma transição (com um q qualquer)
-    S.add(transicao_loop)
-    
-    # Tese (negada): Invariante FALHA DEPOIS
-    S.add(Not(Invariante(r_prox, s_prox, t_prox, r_linha_prox, s_linha_prox, t_linha_prox)))
-    
-    if S.check() == unsat:
-        print("   [SUCESSO] Passo Indutivo provado.")
+    q = r / r_p
+    transicao = And(
+        r_p != 0,               
+        r_new == r_p,           
+        r_p_new == r - q * r_p, 
+        s_new == s_p,          
+        s_p_new == s - q * s_p,
+        t_new == t_p,           
+        t_p_new == t - q * t_p
+    )
+
+    hipotese = And(
+        phi(a, b, r, s, t),
+        phi(a, b, r_p, s_p, t_p)
+    )
+
+    tese = And(
+        phi(a, b, r_new, s_new, t_new),
+        phi(a, b, r_p_new, s_p_new, t_p_new)
+    )
+
+    solver.push()
+    solver.add(global_constraints)
+    solver.add(hipotese)
+    solver.add(transicao)
+    solver.add(Not(tese))
+
+    if solver.check() == unsat:
+        print("[SUCESSO] Passo: O invariante mantém-se após a transição.")
+        print(">> CONCLUSÃO: O predicado é um invariante válido.\n")
     else:
-        print("   [FALHA] Passo Indutivo falhou.")
-        print(S.model())
+        print("[FALHA] Passo: Contra-exemplo encontrado.")
+        print(solver.model())
+    solver.pop()
+    
+def problema_2c_final():
+    print("--- PROBLEMA 2c: Verificação da Terminação (Look-aheads) ---\n")
 
-    # PARTE B: PROVA DE TERMINAÇÃO
+    r, r_p = Ints('r r_p')
+    r_p_new = Int('r_p_new')
+    
+    solver = Solver()
 
-    print("\n-> PARTE B: Terminar")
-    # Aqui precisamos mesmo da divisão (ou resto), não podemos abstrair o q.
-    # Mas usamos URem (Unsigned Remainder) que é mais direto para o Z3 que a fórmula manual.
+    pre_condition = And(r >= 0, r_p > 0) 
+
+    q = r / r_p
+    transicao = (r_p_new == r - q * r_p)
+
+    claim_bounded = r_p_new >= 0
     
-    S_term = Solver()
-    S_term.add(r_linha != 0) 
-    
-    # O próximo r_linha é, na verdade, r % r_linha
-    # Usar URem (resto) é mais eficiente que reconstruir com multiplicação
-    prox_rl_real = URem(r, r_linha)
-    
-    # Propriedade: O novo r' tem de ser estritamente menor que o r' atual
-    ranking = UGT(r_linha, prox_rl_real)
-    
-    print("3. A verificar decrescimento estrito...")
-    S_term.add(Not(ranking))
-    
-    if S_term.check() == unsat:
-        print("   [SUCESSO] Terminou")
+    solver.push()
+    solver.add(pre_condition)
+    solver.add(transicao)
+    solver.add(Not(claim_bounded)) 
+
+    if solver.check() == unsat:
+        print("[SUCESSO] Bounded: r' mantém-se sempre não-negativo (>= 0).")
     else:
-        print("   [FALHA] Ao terminar.")
+        print("[FALHA] Bounded: r' pode tornar-se negativo.")
+    solver.pop()
+
+    claim_decreasing = r_p_new < r_p
+
+    solver.push()
+    solver.add(pre_condition)
+    solver.add(transicao)
+    solver.add(Not(claim_decreasing)) 
+
+    if solver.check() == unsat:
+        print("[SUCESSO] Decreasing: r' decresce estritamente a cada iteração.")
+        print(">> CONCLUSÃO: O programa termina sempre.\n")
+    else:
+        print("[FALHA] Decreasing: r' não decresce necessariamente.")
+    solver.pop()
 
 if __name__ == "__main__":
-    main()
+    problema_2a()
+    problema_2b_kinducao()
+    problema_2c_final()
+    print("--- Verificação Concluída ---")
