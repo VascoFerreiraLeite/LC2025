@@ -9,8 +9,8 @@ DT = 0.25
 LIMIT_Z = 1.0
 
 # Constantes dos Portos
-PORTO_A_FINAL = 98
-PORTO_B_FINAL = 99
+PORTO_A_FINAL = -1
+PORTO_B_FINAL = 15
 
 # Mapas de Adjacência (Lógica)
 ADJ_A = {
@@ -34,10 +34,8 @@ ADJ_B = {
 }
 
 # ==============================================================================
-# 2. GEOMETRIA (NOVIDADE: Para o Output Bonito)
+# 2. GEOMETRIA 
 # ==============================================================================
-# Definimos (x0, y0, angulo_rad) para cada setor
-# Assumi um grid lógico onde cada setor tem 1km de comprimento
 GEO_DATA = {
     # Coluna Esquerda (x=0)
     11: (0.0, 3.0, 0.0), 13: (0.0, 1.0, 0.0),
@@ -54,17 +52,29 @@ GEO_DATA = {
     # Coluna Direita (x=6)
     12: (6.0, 3.0, 0.0), 14: (6.0, 1.0, 0.0),
     # Portos Finais
-    PORTO_A_FINAL: (-1.0, 2.0, 0.0), # Esquerda fora do mapa
-    PORTO_B_FINAL: (7.0, 2.0, 0.0)   # Direita fora do mapa
+    PORTO_A_FINAL: (-1.0, 2.0, 0.0), 
+    PORTO_B_FINAL: (7.0, 2.0, 0.0)   
 }
 
-def get_xy(sector, z_val):
-    """Calcula x, y reais baseado no setor e progresso z"""
+def get_xy(sector, z_val, is_ship_A):
+    """
+    Calcula x, y reais.
+    CORREÇÃO: Navio B inverte a direção do X (anda para a esquerda).
+    """
     if sector not in GEO_DATA: return 0.0, 0.0
+    
+    # x0 é sempre a borda ESQUERDA do setor
     x0, y0, phi = GEO_DATA[sector]
-    # [cite_start]x = x0 + z * cos(phi) [cite: 53]
-    x = x0 + z_val * math.cos(phi)
-    y = y0 + z_val * math.sin(phi)
+    
+    if is_ship_A:
+        # Navio A: Entra na esquerda (x0), sai na direita (x0 + 1)
+        x = x0 + z_val
+    else:
+        # Navio B: Entra na direita (x0 + 1), sai na esquerda (x0)
+        # Nota: z vai de 0 a 1, logo x vai de (x0+1) a x0
+        x = (x0 + 1.0) - z_val
+        
+    y = y0 
     return x, y
 
 def get_params(sector, is_ship_A):
@@ -94,7 +104,7 @@ def get_params(sector, is_ship_A):
         return gamma_decel, -epsilon_base, V_limite
 
 # ==============================================================================
-# 3. Z3 LOGIC (Igual ao anterior)
+# 3. Z3 LOGIC
 # ==============================================================================
 
 def declare_state(i):
@@ -213,37 +223,40 @@ def run_bmc(k, check_type="sufficient"):
         unsafe_prop = waited
 
     s.add(unsafe_prop)
+    
     if s.check() == sat:
         print("Resultado: UNSAFE (Falha encontrada!)")
-        print(f"{'Step':<5} | {'Navio A (Sec, z, x, y)':<30} | {'Navio B (Sec, z, x, y)':<30}")
-        print("-" * 75)
+        print(f"{'Step':<5} | {'Navio A (Sec, v, z, x, y)':<35} | {'Navio B (Sec, v, z, x, y)':<35}")
+        print("-" * 85)
         
         m = s.model()
         for i in range(k + 1):
             # Dados Navio A
             sa = m[states[i]['sA']].as_long()
             za = z3_to_float(m[states[i]['zA']])
+            va = z3_to_float(m[states[i]['vA']])
             wa = is_true(m[states[i]['waitA']])
-            xa, ya = get_xy(sa, za)
+            # Passamos True para Navio A
+            xa, ya = get_xy(sa, za, True)
             
             # Dados Navio B
             sb = m[states[i]['sB']].as_long()
             zb = z3_to_float(m[states[i]['zB']])
+            vb = z3_to_float(m[states[i]['vB']])
             wb = is_true(m[states[i]['waitB']])
-            xb, yb = get_xy(sb, zb)
+            # Passamos False para Navio B
+            xb, yb = get_xy(sb, zb, False)
             
-            # Formatação bonita
             wa_str = " [WAIT]" if wa else ""
             wb_str = " [WAIT]" if wb else ""
             
-            str_a = f"s{sa:<2} z={za:.2f} ({xa:.1f}, {ya:.1f}){wa_str}"
-            str_b = f"s{sb:<2} z={zb:.2f} ({xb:.1f}, {yb:.1f}){wb_str}"
+            str_a = f"s{sa:<2} v={va:.2f} z={za:.2f} ({xa:.1f}, {ya:.1f}){wa_str}"
+            str_b = f"s{sb:<2} v={vb:.2f} z={zb:.2f} ({xb:.1f}, {yb:.1f}){wb_str}"
             
-            print(f"{i:<5} | {str_a:<30} | {str_b:<30}")
+            print(f"{i:<5} | {str_a:<35} | {str_b:<35}")
     else:
         print("Resultado: SAFE (Nenhuma falha encontrada)")
 
 if __name__ == "__main__":
-    # Reduzi k para 30 para ser mais rápido, já é suficiente para ver o choque
-    run_bmc(30, "sufficient")
-    run_bmc(30, "strong")
+    run_bmc(40, "sufficient")
+    run_bmc(40, "strong")
